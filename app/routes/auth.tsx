@@ -37,12 +37,12 @@ const Auth = () => {
                             <>
                                 {auth.isAuthenticated ? (
                                     <button
-                                        className="auth-button" onClick={auth.signOut}>
+                                        className="auth-button" onClick={() => auth.signOut()}>
                                         <p>LOG OUT</p>
                                     </button>
                                 ) : (
                                     <button
-                                        className="auth-button" onClick={auth.signIn}>
+                                        className="auth-button" onClick={() => auth.signIn()}>
                                         <p>Login</p>
                                     </button>
                                 )}

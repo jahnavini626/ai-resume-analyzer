@@ -100,22 +100,11 @@ const getPuter = (): typeof window.puter | null =>
     typeof window !== "undefined" && window.puter ? window.puter : null;
 
 export const usePuterStore = create<PuterStore>((set, get) => {
+    // ✅ FIXED: removed the rogue chat call and auth corruption
     const setError = (msg: string) => {
-        const wrapped = {
-            chat: window.puter?.ai?.chat?.("hello")
-        };
         set({
             error: msg,
             isLoading: false,
-            auth: {
-                user: null,
-                isAuthenticated: false,
-                signIn: get().auth.signIn,
-                signOut: get().auth.signOut,
-                refreshUser: get().auth.refreshUser,
-                checkAuthStatus: get().auth.checkAuthStatus,
-                getUser: get().auth.getUser,
-            },
         });
     };
 
@@ -324,7 +313,6 @@ export const usePuterStore = create<PuterStore>((set, get) => {
             setError("Puter.js not available");
             return;
         }
-        // return puter.ai.chat(prompt, imageURL, testMode, options);
         return puter.ai.chat(prompt, imageURL, testMode, options) as Promise<
             AIResponse | undefined
         >;
@@ -336,25 +324,29 @@ export const usePuterStore = create<PuterStore>((set, get) => {
             setError("Puter.js not available");
             return;
         }
-
-        return puter.ai.chat(
-            [
-                {
-                    role: "user",
-                    content: [
-                        {
-                            type: "file",
-                            puter_path: path,
-                        },
-                        {
-                            type: "text",
-                            text: message,
-                        },
-                    ],
-                },
-            ],
-            { model: "claude-sonnet-4" }
-        ) as Promise<AIResponse | undefined>;
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        const fileBlob = await puter.fs.read(path);
+        const base64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve((reader.result as string).split(',')[1]);
+            reader.readAsDataURL(fileBlob);
+        });
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [
+                        { inline_data: { mime_type: 'application/pdf', data: base64 } },
+                        { text: message }
+                    ]
+                }]
+            })
+        });
+        const data = await response.json();
+        console.log('Gemini response:', JSON.stringify(data));
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        return { message: { content: text || '' } } as AIResponse;
     };
 
     const img2txt = async (image: string | File | Blob, testMode?: boolean) => {
