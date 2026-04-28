@@ -179,17 +179,15 @@ export const usePuterStore = create<PuterStore>((set, get) => {
     const feedback = async (path: string, message: string) => {
         const puter = getPuter();
         if (!puter) { setError("Puter.js not available"); return; }
-        const fileBlob = await puter.fs.read(path);
-        const base64 = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve((reader.result as string).split(',')[1]);
-            reader.readAsDataURL(fileBlob);
-        });
-        const dataUrl = `data:application/pdf;base64,${base64}`;
-        const response = await puter.ai.chat(
-            [{ role: 'user', content: [{ type: 'text', text: message }] }],
-            dataUrl
-        ) as AIResponse;
+
+        // Extract text from resume image
+        const imagePath = path.replace(/\.pdf$/i, '.png');
+        const resumeText = await puter.ai.img2txt(imagePath);
+
+        // Send extracted text to AI for analysis
+        const fullPrompt = `${message}\n\nHere is the resume content extracted from the PDF:\n${resumeText}\n\nReturn ONLY a valid JSON object, no backticks, no extra text.`;
+
+        const response = await puter.ai.chat(fullPrompt) as AIResponse;
         return { message: { content: response.message.content } } as AIResponse;
     };
 

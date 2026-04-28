@@ -45,12 +45,12 @@ const Resume = () => {
 
             setFeedback(data.feedback);
             console.log('feedback data:', data.feedback);
+            console.log('overallScore:', data.feedback?.overallScore);
             console.log({ resumeUrl, imageUrl, feedback: data.feedback });
         }
 
         loadResume();
     }, [id]);
-
     return (
         <main className="!pt-0">
             <nav className="resume-nav">
